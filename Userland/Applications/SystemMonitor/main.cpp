@@ -192,7 +192,7 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
     process_table_view.set_column_visible(ProcessModel::Column::DirtyPrivate, true);
 
     process_table_view.set_key_column_and_sort_order(ProcessModel::Column::CPU, GUI::SortOrder::Descending);
-    process_model->update();
+    TRY(process_model->update());
 
     i32 frequency = Config::read_i32("SystemMonitor", "Monitor", "Frequency", 3);
     if (frequency != 1 && frequency != 3 && frequency != 5) {
@@ -202,7 +202,8 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
 
     auto& refresh_timer = window->add<Core::Timer>(
         frequency * 1000, [&] {
-            process_model->update();
+            // FIXME: There's no way to propagate the error from here
+            (void)process_model->update();
             if (auto* memory_stats_widget = MemoryStatsWidget::the())
                 memory_stats_widget->refresh();
         });

@@ -41,7 +41,7 @@
 
 using namespace Profiler;
 
-static bool generate_profile(pid_t& pid);
+static ErrorOr<bool> generate_profile(pid_t& pid);
 
 ErrorOr<int> serenity_main(Main::Arguments arguments)
 {
@@ -62,7 +62,8 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
 
     String perfcore_file;
     if (!perfcore_file_arg) {
-        if (!generate_profile(pid))
+        auto res = TRY(generate_profile(pid));
+        if (!res)
             return 0;
         perfcore_file = String::formatted("/proc/{}/perf_events", pid);
     } else {
@@ -321,7 +322,7 @@ static bool prompt_to_stop_profiling(pid_t pid, String const& process_name)
     return GUI::Application::the()->exec() == 0;
 }
 
-bool generate_profile(pid_t& pid)
+ErrorOr<bool> generate_profile(pid_t& pid)
 {
     if (!pid) {
         auto process_chooser = GUI::ProcessChooser::construct("Profiler", "Profile", Gfx::Bitmap::try_load_from_file("/res/icons/16x16/app-profiler.png").release_value_but_fixme_should_propagate_errors());
@@ -332,16 +333,11 @@ bool generate_profile(pid_t& pid)
 
     String process_name;
 
-    auto all_processes = Core::ProcessStatisticsReader::get_all();
-    if (all_processes.has_value()) {
-        auto& processes = all_processes->processes;
-        if (auto it = processes.find_if([&](auto& entry) { return entry.pid == pid; }); it != processes.end())
-            process_name = it->name;
-        else
-            process_name = "(unknown)";
-    } else {
+    auto all_processes = TRY(Core::ProcessStatisticsReader::get_all());
+    if (auto it = all_processes.processes.find_if([&](auto& entry) { return entry.pid == pid; }); it != all_processes.processes.end())
+        process_name = it->name;
+    else
         process_name = "(unknown)";
-    }
 
     static constexpr u64 event_mask = PERF_EVENT_SAMPLE | PERF_EVENT_MMAP | PERF_EVENT_MUNMAP | PERF_EVENT_PROCESS_CREATE
         | PERF_EVENT_PROCESS_EXEC | PERF_EVENT_PROCESS_EXIT | PERF_EVENT_THREAD_CREATE | PERF_EVENT_THREAD_EXIT;

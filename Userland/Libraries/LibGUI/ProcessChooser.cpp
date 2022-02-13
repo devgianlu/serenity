@@ -67,7 +67,7 @@ ProcessChooser::ProcessChooser(StringView window_title, StringView button_label,
         done(ExecCancel);
     };
 
-    m_process_model->update();
+    (void)m_process_model->update();
 
     m_refresh_timer = add<Core::Timer>();
 
@@ -79,7 +79,7 @@ ProcessChooser::ProcessChooser(StringView window_title, StringView button_label,
             previous_selected_pid = pid_as_variant.as_i32();
         }
 
-        m_process_model->update();
+        (void)m_process_model->update();
 
         if (previous_selected_pid == -1) {
             return;

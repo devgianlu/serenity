@@ -328,65 +328,64 @@ Vector<GUI::ModelIndex> ProcessModel::matches(StringView searching, unsigned fla
     return found_indices;
 }
 
-void ProcessModel::update()
+ErrorOr<void> ProcessModel::update()
 {
     auto previous_tid_count = m_tids.size();
-    auto all_processes = Core::ProcessStatisticsReader::get_all(m_proc_all);
+    auto all_processes = TRY(Core::ProcessStatisticsReader::get_all(m_proc_all));
 
     HashTable<int> live_tids;
     u64 total_time_scheduled_diff = 0;
-    if (all_processes.has_value()) {
-        if (m_has_total_scheduled_time)
-            total_time_scheduled_diff = all_processes->total_time_scheduled - m_total_time_scheduled;
 
-        m_total_time_scheduled = all_processes->total_time_scheduled;
-        m_total_time_scheduled_kernel = all_processes->total_time_scheduled_kernel;
-        m_has_total_scheduled_time = true;
+    if (m_has_total_scheduled_time)
+        total_time_scheduled_diff = all_processes.total_time_scheduled - m_total_time_scheduled;
 
-        for (auto& process : all_processes.value().processes) {
-            for (auto& thread : process.threads) {
-                ThreadState state;
-                state.kernel = process.kernel;
-                state.pid = process.pid;
-                state.user = process.username;
-                state.pledge = process.pledge;
-                state.veil = process.veil;
-                state.syscall_count = thread.syscall_count;
-                state.inode_faults = thread.inode_faults;
-                state.zero_faults = thread.zero_faults;
-                state.cow_faults = thread.cow_faults;
-                state.unix_socket_read_bytes = thread.unix_socket_read_bytes;
-                state.unix_socket_write_bytes = thread.unix_socket_write_bytes;
-                state.ipv4_socket_read_bytes = thread.ipv4_socket_read_bytes;
-                state.ipv4_socket_write_bytes = thread.ipv4_socket_write_bytes;
-                state.file_read_bytes = thread.file_read_bytes;
-                state.file_write_bytes = thread.file_write_bytes;
-                state.amount_virtual = process.amount_virtual;
-                state.amount_resident = process.amount_resident;
-                state.amount_dirty_private = process.amount_dirty_private;
-                state.amount_clean_inode = process.amount_clean_inode;
-                state.amount_purgeable_volatile = process.amount_purgeable_volatile;
-                state.amount_purgeable_nonvolatile = process.amount_purgeable_nonvolatile;
+    m_total_time_scheduled = all_processes.total_time_scheduled;
+    m_total_time_scheduled_kernel = all_processes.total_time_scheduled_kernel;
+    m_has_total_scheduled_time = true;
 
-                state.name = thread.name;
-                state.executable = process.executable;
+    for (auto& process : all_processes.processes) {
+        for (auto& thread : process.threads) {
+            ThreadState state;
+            state.kernel = process.kernel;
+            state.pid = process.pid;
+            state.user = process.username;
+            state.pledge = process.pledge;
+            state.veil = process.veil;
+            state.syscall_count = thread.syscall_count;
+            state.inode_faults = thread.inode_faults;
+            state.zero_faults = thread.zero_faults;
+            state.cow_faults = thread.cow_faults;
+            state.unix_socket_read_bytes = thread.unix_socket_read_bytes;
+            state.unix_socket_write_bytes = thread.unix_socket_write_bytes;
+            state.ipv4_socket_read_bytes = thread.ipv4_socket_read_bytes;
+            state.ipv4_socket_write_bytes = thread.ipv4_socket_write_bytes;
+            state.file_read_bytes = thread.file_read_bytes;
+            state.file_write_bytes = thread.file_write_bytes;
+            state.amount_virtual = process.amount_virtual;
+            state.amount_resident = process.amount_resident;
+            state.amount_dirty_private = process.amount_dirty_private;
+            state.amount_clean_inode = process.amount_clean_inode;
+            state.amount_purgeable_volatile = process.amount_purgeable_volatile;
+            state.amount_purgeable_nonvolatile = process.amount_purgeable_nonvolatile;
 
-                state.ppid = process.ppid;
-                state.tid = thread.tid;
-                state.pgid = process.pgid;
-                state.sid = process.sid;
-                state.time_user = thread.time_user;
-                state.time_kernel = thread.time_kernel;
-                state.cpu = thread.cpu;
-                state.cpu_percent = 0;
-                state.priority = thread.priority;
-                state.state = thread.state;
-                auto& thread_data = *m_threads.ensure(thread.tid, [] { return make<Thread>(); });
-                thread_data.previous_state = move(thread_data.current_state);
-                thread_data.current_state = move(state);
+            state.name = thread.name;
+            state.executable = process.executable;
 
-                live_tids.set(thread.tid);
-            }
+            state.ppid = process.ppid;
+            state.tid = thread.tid;
+            state.pgid = process.pgid;
+            state.sid = process.sid;
+            state.time_user = thread.time_user;
+            state.time_kernel = thread.time_kernel;
+            state.cpu = thread.cpu;
+            state.cpu_percent = 0;
+            state.priority = thread.priority;
+            state.state = thread.state;
+            auto& thread_data = *m_threads.ensure(thread.tid, [] { return make<Thread>(); });
+            thread_data.previous_state = move(thread_data.current_state);
+            thread_data.current_state = move(state);
+
+            live_tids.set(thread.tid);
         }
     }
 
@@ -423,9 +422,10 @@ void ProcessModel::update()
         on_cpu_info_change(m_cpus);
 
     if (on_state_update)
-        on_state_update(all_processes.has_value() ? all_processes->processes.size() : 0, m_threads.size());
+        on_state_update(all_processes.processes.size(), m_threads.size());
 
     // FIXME: This is a rather hackish way of invalidating indices.
     //        It would be good if GUI::Model had a way to orchestrate removal/insertion while preserving indices.
     did_update(previous_tid_count == m_tids.size() ? GUI::Model::UpdateFlag::DontInvalidateIndices : GUI::Model::UpdateFlag::InvalidateAllIndices);
+    return {};
 }

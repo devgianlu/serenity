@@ -18,11 +18,8 @@ static ErrorOr<int> pid_of(const String& process_name, bool single_shot, bool om
 {
     bool displayed_at_least_one = false;
 
-    auto all_processes = Core::ProcessStatisticsReader::get_all();
-    if (!all_processes.has_value())
-        return 1;
-
-    for (auto& it : all_processes.value().processes) {
+    auto all_processes = TRY(Core::ProcessStatisticsReader::get_all());
+    for (auto& it : all_processes.processes) {
         if (it.name == process_name) {
             if (!omit_pid || it.pid != pid) {
                 out(displayed_at_least_one ? " {}" : "{}", it.pid);

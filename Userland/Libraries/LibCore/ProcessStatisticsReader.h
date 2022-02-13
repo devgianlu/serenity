@@ -72,8 +72,8 @@ struct AllProcessesStatistics {
 
 class ProcessStatisticsReader {
 public:
-    static Optional<AllProcessesStatistics> get_all(RefPtr<Core::File>&);
-    static Optional<AllProcessesStatistics> get_all();
+    static ErrorOr<AllProcessesStatistics> get_all(RefPtr<Core::File>&);
+    static ErrorOr<AllProcessesStatistics> get_all();
 
 private:
     static String username_from_uid(uid_t);

@@ -46,11 +46,8 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
     HashMap<pid_t, String> programs;
 
     if (flag_program) {
-        auto processes = Core::ProcessStatisticsReader::get_all();
-        if (!processes.has_value())
-            return 1;
-
-        for (auto& proc : processes.value().processes) {
+        auto processes = TRY(Core::ProcessStatisticsReader::get_all());
+        for (auto& proc : processes.processes) {
             programs.set(proc.pid, proc.name);
         }
     }

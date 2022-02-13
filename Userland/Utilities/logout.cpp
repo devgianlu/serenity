@@ -11,7 +11,7 @@
 
 static Core::ProcessStatistics const& get_proc(Core::AllProcessesStatistics const& stats, pid_t pid)
 {
-    for (auto& proc : stats.processes) {
+    for (auto const& proc : stats.processes) {
         if (proc.pid == pid)
             return proc;
     }
@@ -26,16 +26,12 @@ ErrorOr<int> serenity_main(Main::Arguments)
     TRY(Core::System::unveil(nullptr, nullptr));
 
     // logout finds the highest session up all nested sessions, and kills it.
-    auto stats = Core::ProcessStatisticsReader::get_all();
-    if (!stats.has_value()) {
-        warnln("couldn't get process statistics");
-        return 1;
-    }
+    auto stats = TRY(Core::ProcessStatisticsReader::get_all());
 
     pid_t sid = getsid(0);
     while (true) {
-        pid_t parent = get_proc(stats.value(), sid).ppid;
-        pid_t parent_sid = get_proc(stats.value(), parent).sid;
+        pid_t parent = get_proc(stats, sid).ppid;
+        pid_t parent_sid = get_proc(stats, parent).sid;
 
         if (parent_sid == 0)
             break;

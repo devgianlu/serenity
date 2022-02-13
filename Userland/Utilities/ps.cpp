@@ -74,12 +74,7 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
         cmd_column = add_column("CMD", Alignment::Left);
     }
 
-    auto all_processes = Core::ProcessStatisticsReader::get_all();
-    if (!all_processes.has_value())
-        return 1;
-
-    auto& processes = all_processes.value().processes;
-
+    auto processes = TRY(Core::ProcessStatisticsReader::get_all()).processes;
     if (!pid_list.is_empty()) {
         every_process_flag = true;
         auto string_parts = pid_list.split_view(',');

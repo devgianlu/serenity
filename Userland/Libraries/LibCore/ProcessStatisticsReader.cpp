@@ -16,29 +16,23 @@ namespace Core {
 
 HashMap<uid_t, String> ProcessStatisticsReader::s_usernames;
 
-Optional<AllProcessesStatistics> ProcessStatisticsReader::get_all(RefPtr<Core::File>& proc_all_file)
+ErrorOr<AllProcessesStatistics> ProcessStatisticsReader::get_all(RefPtr<Core::File>& proc_all_file)
 {
     if (proc_all_file) {
-        if (!proc_all_file->seek(0, Core::SeekMode::SetPosition)) {
-            warnln("ProcessStatisticsReader: Failed to refresh /proc/all: {}", proc_all_file->error_string());
-            return {};
-        }
+        if (!proc_all_file->seek(0, Core::SeekMode::SetPosition))
+            return Error::from_string_literal(String::formatted("ProcessStatisticsReader: Failed to refresh /proc/all: {}", proc_all_file->error_string()));
     } else {
         proc_all_file = Core::File::construct("/proc/all");
-        if (!proc_all_file->open(Core::OpenMode::ReadOnly)) {
-            warnln("ProcessStatisticsReader: Failed to open /proc/all: {}", proc_all_file->error_string());
-            return {};
-        }
+        if (!proc_all_file->open(Core::OpenMode::ReadOnly))
+            return Error::from_string_literal(String::formatted("ProcessStatisticsReader: Failed to open /proc/all: {}", proc_all_file->error_string()));
     }
 
     AllProcessesStatistics all_processes_statistics;
 
     auto file_contents = proc_all_file->read_all();
-    auto json = JsonValue::from_string(file_contents);
-    if (json.is_error())
-        return {};
+    auto json = TRY(JsonValue::from_string(file_contents));
 
-    auto& json_obj = json.value().as_object();
+    auto const& json_obj = json.as_object();
     json_obj.get("processes").as_array().for_each([&](auto& value) {
         const JsonObject& process_object = value.as_object();
         Core::ProcessStatistics process;
@@ -66,7 +60,7 @@ Optional<AllProcessesStatistics> ProcessStatisticsReader::get_all(RefPtr<Core::F
         process.amount_purgeable_volatile = process_object.get("amount_purgeable_volatile").to_u32();
         process.amount_purgeable_nonvolatile = process_object.get("amount_purgeable_nonvolatile").to_u32();
 
-        auto& thread_array = process_object.get_ptr("threads")->as_array();
+        auto const& thread_array = process_object.get_ptr("threads")->as_array();
         process.threads.ensure_capacity(thread_array.size());
         thread_array.for_each([&](auto& value) {
             auto& thread_object = value.as_object();
@@ -102,7 +96,7 @@ Optional<AllProcessesStatistics> ProcessStatisticsReader::get_all(RefPtr<Core::F
     return all_processes_statistics;
 }
 
-Optional<AllProcessesStatistics> ProcessStatisticsReader::get_all()
+ErrorOr<AllProcessesStatistics> ProcessStatisticsReader::get_all()
 {
     RefPtr<Core::File> proc_all_file;
     return get_all(proc_all_file);

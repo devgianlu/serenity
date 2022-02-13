@@ -23,23 +23,22 @@ RunningProcessesModel::~RunningProcessesModel()
 {
 }
 
-void RunningProcessesModel::update()
+ErrorOr<void> RunningProcessesModel::update()
 {
     m_processes.clear();
 
-    auto all_processes = Core::ProcessStatisticsReader::get_all();
-    if (all_processes.has_value()) {
-        for (auto& it : all_processes.value().processes) {
-            Process process;
-            process.pid = it.pid;
-            process.uid = it.uid;
-            process.icon = FileIconProvider::icon_for_executable(it.executable).bitmap_for_size(16);
-            process.name = it.name;
-            m_processes.append(move(process));
-        }
+    auto all_processes = TRY(Core::ProcessStatisticsReader::get_all());
+    for (auto& it : all_processes.processes) {
+        Process process;
+        process.pid = it.pid;
+        process.uid = it.uid;
+        process.icon = FileIconProvider::icon_for_executable(it.executable).bitmap_for_size(16);
+        process.name = it.name;
+        m_processes.append(move(process));
     }
 
     did_update();
+    return {};
 }
 
 int RunningProcessesModel::row_count(const GUI::ModelIndex&) const

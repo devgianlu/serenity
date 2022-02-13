@@ -29,7 +29,7 @@ public:
     virtual String column_name(int column_index) const override;
     virtual GUI::Variant data(const GUI::ModelIndex&, GUI::ModelRole) const override;
 
-    void update();
+    ErrorOr<void> update();
 
 private:
     RunningProcessesModel();
